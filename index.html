@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIOO Agenda Médica</title>
+<meta name="theme-color" content="#185FA5" />
+<meta name="description" content="Sistema de turnos médicos — SIOO" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="SIOO Agenda" />
+<link rel="manifest" href="manifest.json" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --surface2: #F0EFE9;
+  --border: rgba(0,0,0,0.09);
+  --border2: rgba(0,0,0,0.16);
+  --text: #1A1917;
+  --text2: #6B6A65;
+  --text3: #A09E99;
+  --blue: #185FA5; --blue-l: #E6F1FB; --blue-d: #042C53;
+  --teal: #0F6E56; --teal-l: #E1F5EE; --teal-d: #04342C;
+  --purple: #533AB7; --purple-l: #EEEDFE; --purple-d: #26215C;
+  --coral: #993C1D; --coral-l: #FAECE7; --coral-d: #4A1B0C;
+  --pink: #993556; --pink-l: #FBEAF0; --pink-d: #4B1528;
+  --green: #3B6D11; --green-l: #EAF3DE; --green-d: #173404;
+  --amber: #BA7517; --amber-l: #FAEEDA; --amber-d: #412402;
+  --red: #A32D2D; --red-l: #FCEBEB;
+  --radius: 8px; --radius-lg: 12px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+input, select, textarea { font-family: var(--font); }
+
+/* LAYOUT */
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.5rem 0; position: sticky; top: 0; height: 100vh; }
+.sidebar-logo { padding: 0 1.25rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.sidebar-logo .brand { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+.sidebar-logo .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 1.25rem; font-size: 13px; color: var(--text2); cursor: pointer; border-left: 2px solid transparent; transition: all 0.12s; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { color: var(--blue); border-left-color: var(--blue); background: var(--blue-l); font-weight: 500; }
+.nav-icon { font-size: 15px; width: 18px; text-align: center; }
+.nav-section { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.75rem 1.25rem 0.25rem; margin-top: 0.5rem; }
+.main { flex: 1; padding: 2rem; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* HEADER */
+.page-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.4px; }
+.spacer { flex: 1; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+.stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.stat-val { font-size: 24px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text); transition: all 0.12s; font-family: var(--font); }
+.btn:hover { background: var(--surface2); }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary:hover { background: var(--blue-d); border-color: var(--blue-d); }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--red-l); }
+.btn-success { background: var(--teal); color: #fff; border-color: var(--teal); }
+.btn-success:hover { background: var(--teal-d); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* FILTERS */
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+.chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); font-size: 12px; cursor: pointer; background: var(--surface); color: var(--text2); transition: all 0.12s; font-weight: 400; }
+.chip:hover { background: var(--surface2); }
+.chip.on { font-weight: 500; }
+.chip.rmn.on { background: var(--blue-l); color: var(--blue-d); border-color: var(--blue); }
+.chip.tac.on { background: var(--coral-l); color: var(--coral-d); border-color: var(--coral); }
+.chip.eco.on { background: var(--purple-l); color: var(--purple-d); border-color: var(--purple); }
+.chip.rx.on  { background: var(--teal-l); color: var(--teal-d); border-color: var(--teal); }
+.chip.der.on { background: var(--pink-l); color: var(--pink-d); border-color: var(--pink); }
+.chip.mg.on  { background: var(--green-l); color: var(--green-d); border-color: var(--green); }
+.chip.guardia.on { background: var(--amber-l); color: var(--amber-d); border-color: var(--amber); }
+
+/* TABS */
+.view-tabs { display: flex; gap: 4px; margin-bottom: 1rem; background: var(--surface2); padding: 3px; border-radius: var(--radius); display: inline-flex; }
+.vtab { padding: 5px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: none; background: transparent; color: var(--text2); font-family: var(--font); transition: all 0.12s; }
+.vtab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* AGENDA */
+.nav-date { display: flex; align-items: center; gap: 10px; }
+.date-label { font-size: 15px; font-weight: 500; min-width: 240px; }
+.day-view { display: flex; flex-direction: column; }
+.hour-row { display: flex; align-items: stretch; min-height: 56px; border-bottom: 1px solid var(--border); }
+.hour-row:last-child { border-bottom: none; }
+.hour-label { width: 58px; min-width: 58px; font-size: 11px; color: var(--text3); padding: 8px 12px 0 0; text-align: right; font-family: var(--mono); }
+.hour-slots { flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 5px 0 5px 12px; border-left: 1px solid var(--border); }
+.hour-slots.current-hour { border-left: 2px solid var(--blue); }
+.turno { border-radius: var(--radius); padding: 7px 10px; cursor: pointer; transition: all 0.12s; display: flex; align-items: flex-start; gap: 8px; border: 1px solid transparent; }
+.turno:hover { filter: brightness(0.96); }
+.turno-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.sd-confirmado { background: #1D9E75; }
+.sd-pendiente  { background: #EF9F27; }
+.sd-cancelado  { background: #E24B4A; }
+.turno-body { flex: 1; min-width: 0; }
+.t-row1 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.t-name { font-weight: 500; font-size: 13px; }
+.t-time { font-size: 11px; font-family: var(--mono); color: inherit; opacity: 0.7; }
+.t-row2 { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+.b-rmn { background: var(--blue-l); color: var(--blue-d); }
+.b-tac { background: var(--coral-l); color: var(--coral-d); }
+.b-eco { background: var(--purple-l); color: var(--purple-d); }
+.b-rx  { background: var(--teal-l); color: var(--teal-d); }
+.b-der { background: var(--pink-l); color: var(--pink-d); }
+.b-mg  { background: var(--green-l); color: var(--green-d); }
+.b-guardia { background: var(--amber-l); color: var(--amber-d); }
+.b-neutral { background: var(--surface2); color: var(--text2); }
+.b-medico { background: var(--surface2); color: var(--text); font-weight: 400; }
+.b-contraste { background: #FFF3CD; color: #856404; }
+.turno.t-rmn { background: var(--blue-l); border-color: rgba(24,95,165,0.15); }
+.turno.t-tac { background: var(--coral-l); border-color: rgba(153,60,29,0.15); }
+.turno.t-eco { background: var(--purple-l); border-color: rgba(83,58,183,0.15); }
+.turno.t-rx  { background: var(--teal-l); border-color: rgba(15,110,86,0.15); }
+.turno.t-der { background: var(--pink-l); border-color: rgba(153,53,86,0.15); }
+.turno.t-mg  { background: var(--green-l); border-color: rgba(59,109,17,0.15); }
+.turno.t-guardia { background: var(--amber-l); border-color: rgba(186,117,23,0.15); }
+.turno.cancelado { opacity: 0.42; }
+.empty-slot { font-size: 11px; color: var(--text3); padding: 6px 0; cursor: pointer; }
+.empty-slot:hover { color: var(--blue); }
+
+/* WEEK GRID */
+.week-grid { display: grid; grid-template-columns: 58px repeat(5, minmax(0,1fr)); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--border); gap: 1px; }
+.wg-cell { background: var(--surface); padding: 5px 7px; min-height: 40px; }
+.wg-head { font-size: 11px; font-weight: 500; color: var(--text2); text-align: center; padding: 8px 5px; background: var(--surface2); }
+.wg-hour { font-size: 10px; color: var(--text3); text-align: right; padding-top: 7px; font-family: var(--mono); background: var(--surface2); }
+.wg-pill { border-radius: 4px; padding: 3px 6px; font-size: 10px; margin-bottom: 3px; cursor: pointer; line-height: 1.4; }
+.wg-pill:hover { filter: brightness(0.94); }
+
+/* MODAL */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 1.75rem; width: 440px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.modal-title { font-size: 16px; font-weight: 600; }
+.modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text3); line-height: 1; padding: 2px 6px; border-radius: 4px; }
+.modal-close:hover { background: var(--surface2); color: var(--text); }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.field input, .field select { width: 100%; padding: 8px 11px; font-size: 13px; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); transition: border-color 0.12s; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--blue); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-info { background: var(--surface2); border-radius: var(--radius); padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 14px; border-left: 3px solid var(--blue); }
+.field-info strong { color: var(--text); display: block; font-size: 13px; margin-bottom: 3px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 1.25rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border); }
+.checkbox-row { display: flex; align-items: center; gap: 8px; }
+.checkbox-row input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--blue); }
+.checkbox-row label { font-size: 13px; font-weight: 400; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
+
+/* ADMIN TABLES */
+.admin-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.5rem; overflow: hidden; }
+.admin-section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.admin-section-title { font-size: 14px; font-weight: 600; }
+.table { width: 100%; border-collapse: collapse; }
+.table th { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 18px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.table td { padding: 11px 18px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--surface2); }
+.tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+
+/* POLICLINICA CARDS */
+.poli-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.poli-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.poli-card-header { padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.poli-card-icon { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.poli-card-body { padding: 0 14px 14px; }
+.poli-card-title { font-size: 14px; font-weight: 600; }
+.poli-card-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.poli-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.poli-row:last-child { border-bottom: none; }
+.poli-row-label { color: var(--text3); }
+.poli-row-val { font-weight: 500; color: var(--text); text-align: right; }
+.edit-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
+.edit-btn:hover { background: var(--surface2); color: var(--blue); }
+
+.hidden { display: none !important; }
+
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .field-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">SIOO Agenda</div>
+      <div class="sub">Sistema de turnos médicos</div>
+    </div>
+    <div class="nav-section">Agenda</div>
+    <div class="nav-item active" data-page="agenda"><span class="nav-icon">📅</span> Agenda</div>
+    <div class="nav-section">Administración</div>
+    <div class="nav-item" data-page="policlinicas"><span class="nav-icon">🏥</span> Policlínicas</div>
+    <div class="nav-item" data-page="medicos"><span class="nav-icon">👨‍⚕️</span> Médicos y equipo</div>
+    <div class="nav-item" data-page="precios"><span class="nav-icon">💲</span> Precios</div>
+    <div class="nav-item" data-page="exportar"><span class="nav-icon">📊</span> Exportar</div>
+  </div>
+
+  <div class="main">
+
+    <!-- PAGE: AGENDA -->
+    <div class="page active" id="page-agenda">
+      <div class="page-header">
+        <div class="nav-date">
+          <button class="btn btn-sm" id="prevDay">&#8592;</button>
+          <span class="date-label" id="dateLabel"></span>
+          <button class="btn btn-sm" id="nextDay">&#8594;</button>
+          <button class="btn btn-sm" id="todayBtn">Hoy</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="view-tabs">
+          <button class="vtab active" data-v="day">Día</button>
+          <button class="vtab" data-v="week">Semana</button>
+        </div>
+        <button class="btn btn-primary" id="addBtn">+ Nuevo turno</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Turnos hoy</div><div class="stat-val" id="statTotal">0</div><div class="stat-sub">programados</div></div>
+        <div class="stat-card"><div class="stat-label">Confirmados</div><div class="stat-val" id="statConf">0</div><div class="stat-sub">del día</div></div>
+        <div class="stat-card"><div class="stat-label">Próximo</div><div class="stat-val" id="statNext">—</div><div class="stat-sub">horario</div></div>
+        <div class="stat-card"><div class="stat-label">Huecos libres</div><div class="stat-val" id="statDisp">0</div><div class="stat-sub">disponibles</div></div>
+      </div>
+
+      <div class="filter-row" id="filterRow"></div>
+      <div id="dayView" class="day-view"></div>
+      <div id="weekView" class="hidden"></div>
+    </div>
+
+    <!-- PAGE: POLICLÍNICAS -->
+    <div class="page" id="page-policlinicas">
+      <div class="page-header">
+        <div class="page-title">Policlínicas</div>
+        <div class="spacer"></div>
+      </div>
+      <div class="poli-grid" id="poliGrid"></div>
+    </div>
+
+    <!-- PAGE: MÉDICOS -->
+    <div class="page" id="page-medicos">
+      <div class="page-header">
+        <div class="page-title">Médicos y equipo</div>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="addMedicoBtn">+ Agregar persona</button>
+      </div>
+      <div class="admin-section">
+        <div class="admin-section-header"><span class="admin-section-title">Equipo registrado</span></div>
+        <table class="table" id="medicosTable">
+          <thead><tr><th>Nombre</th><th>Rol</th><th>Especialidad</th><th>Acciones</th></tr></thead>
+          <tbody id="medicosBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: PRECIOS -->
+    <div class="page" id="page-precios">
+      <div class="page-header">
+        <div class="page-title">Precios por estudio</div>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="savePreciosBtn">Guardar cambios</button>
+      </div>
+      <div class="admin-section">
+        <div class="admin-section-header"><span class="admin-section-title">Aranceles</span><span style="font-size:12px;color:var(--text3)">Valores en moneda local</span></div>
+        <table class="table" id="preciosTable">
+          <thead><tr><th>Modalidad</th><th>Estudio</th><th>Precio base</th><th>Con contraste</th></tr></thead>
+          <tbody id="preciosBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: EXPORTAR -->
+    <div class="page" id="page-exportar">
+      <div class="page-header">
+        <div class="page-title">Exportar a Excel</div>
+      </div>
+      <div class="admin-section" style="max-width:480px;">
+        <div class="admin-section-header"><span class="admin-section-title">Configurar exportación</span></div>
+        <div style="padding:1.25rem;">
+          <div class="field"><label>Desde</label><input type="date" id="expFrom" /></div>
+          <div class="field"><label>Hasta</label><input type="date" id="expTo" /></div>
+          <div class="field"><label>Modalidad</label>
+            <select id="expType">
+              <option value="">Todas</option>
+              <option value="rmn">Resonancia (RMN)</option>
+              <option value="tac">Tomografía (TAC)</option>
+              <option value="eco">Ecografía</option>
+              <option value="rx">Radiografía (RX)</option>
+              <option value="der">Dermatología</option>
+              <option value="mg">Medicina general</option>
+              <option value="guardia">Guardia</option>
+            </select>
+          </div>
+          <div class="field"><label>Estado</label>
+            <select id="expStatus">
+              <option value="">Todos</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:10px;">
+            <button class="btn btn-success" id="exportBtn">⬇ Exportar Excel</button>
+            <button class="btn" id="previewBtn">Vista previa</button>
+          </div>
+        </div>
+      </div>
+      <div id="previewContainer" class="hidden" style="margin-top:1.5rem;">
+        <div class="admin-section">
+          <div class="admin-section-header"><span class="admin-section-title" id="previewTitle">Vista previa</span></div>
+          <div style="overflow-x:auto;"><table class="table" id="previewTable"></table></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL TURNO -->
+<div class="overlay hidden" id="modalTurno">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTurnoTitle">Nuevo turno</div>
+      <button class="modal-close" id="closeTurnoModal">&times;</button>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Fecha</label><input type="date" id="fDate" /></div>
+      <div class="field"><label>Horario</label><input type="time" id="fTime" /></div>
+    </div>
+    <div class="field"><label>Paciente</label><input type="text" id="fName" placeholder="Apellido, Nombre" /></div>
+    <div class="field-row">
+      <div class="field"><label>Modalidad</label><select id="fType"></select></div>
+      <div class="field"><label>Estudio</label><select id="fSub"></select></div>
+    </div>
+    <div class="field" id="contrasteField">
+      <label>Contraste</label>
+      <div class="checkbox-row">
+        <input type="checkbox" id="fContraste" />
+        <label for="fContraste">Requiere contraste</label>
+      </div>
+    </div>
+    <div class="field-info" id="equipoInfo">
+      <strong id="equipoMedico">—</strong>
+      <span id="equipoDetalle" style="font-size:11px;"></span>
+    </div>
+    <div class="field"><label>Estado</label>
+      <select id="fStatus">
+        <option value="confirmado">Confirmado</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
+    </div>
+    <div class="field"><label>Notas</label><input type="text" id="fNotes" placeholder="Observaciones (opcional)" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger hidden" id="deleteTurnoBtn">Eliminar</button>
+      <button class="btn" id="cancelTurnoBtn">Cancelar</button>
+      <button class="btn btn-primary" id="saveTurnoBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MEDICO -->
+<div class="overlay hidden" id="modalMedico">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalMedicoTitle">Agregar persona</div>
+      <button class="modal-close" id="closeMedicoModal">&times;</button>
+    </div>
+    <div class="field"><label>Nombre completo</label><input type="text" id="mName" placeholder="Dr. Apellido, Nombre" /></div>
+    <div class="field-row">
+      <div class="field"><label>Rol</label>
+        <select id="mRol">
+          <option value="medico">Médico/a</option>
+          <option value="lic_imagenologia">Lic. Imagenología</option>
+          <option value="enfermero">Enfermero/a</option>
+          <option value="tecnico">Técnico/a</option>
+          <option value="administrativo">Administrativo/a</option>
+        </select>
+      </div>
+      <div class="field"><label>Especialidad / área</label><input type="text" id="mEsp" placeholder="Ej: Radiología, Guardia" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger hidden" id="deleteMedicoBtn">Eliminar</button>
+      <button class="btn" id="cancelMedicoBtn">Cancelar</button>
+      <button class="btn btn-primary" id="saveMedicoBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL POLICLINICA EDITAR -->
+<div class="overlay hidden" id="modalPoli">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalPoliTitle">Configurar policlínica</div>
+      <button class="modal-close" id="closePoliModal">&times;</button>
+    </div>
+    <div class="field-info" id="poliModalInfo"></div>
+    <div class="field"><label>Médico actuante</label><select id="pMedico"></select></div>
+    <div class="field"><label>Lic. en Imagenología</label><select id="pLic"></select></div>
+    <div class="field"><label>Enfermero/a</label><select id="pEnfermero"></select></div>
+    <div class="field"><label>Notas del equipo</label><input type="text" id="pNotes" placeholder="Ej: guardia pasiva, rotación mensual..." /></div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelPoliBtn">Cancelar</button>
+      <button class="btn btn-primary" id="savePoliBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const TYPES = {
+  rmn:     { label:'Resonancia (RMN)',   icon:'🔵', bCls:'b-rmn',     tCls:'t-rmn',     subs:['Cerebro','Columna cervical','Columna lumbar','Columna dorsal','Hombro','Rodilla','Cadera','Muñeca','Tobillo','Abdomen','Pelvis','Mama','Corazón','Angiografía RM','Columna total','Pelvis-cadera'] },
+  tac:     { label:'Tomografía (TAC)',   icon:'🟠', bCls:'b-tac',     tCls:'t-tac',     subs:['Cerebro','Tórax','Abdomen','Pelvis','Abdomen y pelvis','Columna cervical','Columna lumbar','Macizo facial','Cuello','Tórax-abdomen-pelvis','Angiografía TC','Coronario TC'] },
+  eco:     { label:'Ecografía',          icon:'🟣', bCls:'b-eco',     tCls:'t-eco',     subs:['Abdominal','Obstétrica','Ginecológica','Tiroides','Partes blandas','Renal','Doppler venoso','Doppler arterial','Musculoesquelética','Transvaginal','Neonatal','Testicular'] },
+  rx:      { label:'Radiografía (RX)',   icon:'🟢', bCls:'b-rx',      tCls:'t-rx',      subs:['Tórax PA','Tórax perfil','Columna lumbar','Columna cervical','Pelvis','Mano','Muñeca','Pie','Tobillo','Rodilla','Cráneo','Abdomen simple','Cadera','Hombro'] },
+  der:     { label:'Dermatología',       icon:'🩷', bCls:'b-der',     tCls:'t-der',     subs:['Consulta inicial','Control de lunares','Dermatoscopía','Extirpación de lesión','Crioterapia','Infiltración','Láser','Peeling','Control post-procedimiento','Acné','Psoriasis','Urticaria'] },
+  mg:      { label:'Medicina general',   icon:'🟩', bCls:'b-mg',      tCls:'t-mg',      subs:['Consulta','Control anual','Certificado médico','Electrocardiograma','Espirometría','Prescripción','Seguimiento crónico','Examen preocupacional','Urgencia'] },
+  guardia: { label:'Guardia',            icon:'🟡', bCls:'b-guardia', tCls:'t-guardia', subs:['Guardia médica','Urgencia clínica','Urgencia pediátrica','Urgencia traumatológica','Observación','Consulta guardia'] },
+};
+
+const ROL_LABELS = { medico:'Médico/a', lic_imagenologia:'Lic. Imagenología', enfermero:'Enfermero/a', tecnico:'Técnico/a', administrativo:'Administrativo/a' };
+
+let medicos = [
+  {id:1,name:'Dr. Rodríguez, Martín',rol:'medico',esp:'Radiología'},
+  {id:2,name:'Dra. Vázquez, Carmen',rol:'medico',esp:'Resonancia Magnética'},
+  {id:3,name:'Dr. Pereyra, Diego',rol:'medico',esp:'Medicina General'},
+  {id:4,name:'Dra. Suárez, Paula',rol:'medico',esp:'Dermatología'},
+  {id:5,name:'Lic. Morales, Sebastián',rol:'lic_imagenologia',esp:'Imagenología'},
+  {id:6,name:'Lic. Ibarra, Valeria',rol:'lic_imagenologia',esp:'Ecografía'},
+  {id:7,name:'Enf. Gómez, Lorena',rol:'enfermero',esp:'Guardia'},
+  {id:8,name:'Enf. Castillo, Rodrigo',rol:'enfermero',esp:'Imagenología'},
+  {id:9,name:'Dr. Méndez, Ariel',rol:'medico',esp:'Guardia'},
+];
+
+let policlinicas = {
+  rmn:     { medico:2, lic:5, enfermero:8, notes:'' },
+  tac:     { medico:1, lic:5, enfermero:8, notes:'' },
+  eco:     { medico:1, lic:6, enfermero:null, notes:'' },
+  rx:      { medico:1, lic:5, enfermero:null, notes:'' },
+  der:     { medico:4, lic:null, enfermero:null, notes:'' },
+  mg:      { medico:3, lic:null, enfermero:null, notes:'' },
+  guardia: { medico:9, lic:null, enfermero:7, notes:'Guardia pasiva nocturna' },
+};
+
+let precios = {};
+Object.entries(TYPES).forEach(([k,v])=>{
+  v.subs.forEach(s=>{
+    const key=k+'|'+s;
+    const base = k==='rmn'?3200:k==='tac'?2800:k==='eco'?1200:k==='rx'?600:k==='der'?1500:k==='guardia'?1800:900;
+    precios[key]={ base, contraste: base+800 };
+  });
+});
+
+// ─── PERSISTENCIA localStorage ───────────────────────────────────────────────
+const LS = {
+  save(key, val){ try{ localStorage.setItem('sioo_'+key, JSON.stringify(val)); }catch(e){} },
+  load(key, def){ try{ const v=localStorage.getItem('sioo_'+key); return v!==null?JSON.parse(v):def; }catch(e){ return def; } }
+};
+
+// Datos de ejemplo para primera carga
+const SAMPLE_TURNOS = [
+  {id:1,date:todayStr(),name:'García, Lucía',time:'08:00',type:'rx',sub:'Tórax PA',contraste:false,status:'confirmado',notes:'Control'},
+  {id:2,date:todayStr(),name:'Martínez, Pedro',time:'08:30',type:'eco',sub:'Abdominal',contraste:false,status:'confirmado',notes:''},
+  {id:3,date:todayStr(),name:'López, Ana',time:'09:00',type:'tac',sub:'Tórax',contraste:true,status:'pendiente',notes:'Con contraste'},
+  {id:4,date:todayStr(),name:'Ruiz, Carlos',time:'09:30',type:'mg',sub:'Control anual',contraste:false,status:'confirmado',notes:''},
+  {id:5,date:todayStr(),name:'Fernández, Sol',time:'10:00',type:'der',sub:'Control de lunares',contraste:false,status:'confirmado',notes:''},
+  {id:6,date:todayStr(),name:'Díaz, Mario',time:'10:30',type:'rmn',sub:'Rodilla',contraste:false,status:'pendiente',notes:'Rodilla derecha'},
+  {id:7,date:todayStr(),name:'Sánchez, Eva',time:'11:00',type:'rmn',sub:'Cerebro',contraste:true,status:'confirmado',notes:''},
+  {id:8,date:todayStr(),name:'Pérez, Tomás',time:'12:00',type:'eco',sub:'Tiroides',contraste:false,status:'cancelado',notes:''},
+  {id:9,date:todayStr(),name:'Gómez, Laura',time:'14:00',type:'tac',sub:'Abdomen y pelvis',contraste:true,status:'confirmado',notes:''},
+  {id:10,date:todayStr(),name:'Torres, Julio',time:'15:00',type:'der',sub:'Acné',contraste:false,status:'pendiente',notes:''},
+  {id:11,date:todayStr(),name:'Parodi, Luis',time:'16:00',type:'guardia',sub:'Guardia médica',contraste:false,status:'confirmado',notes:''},
+];
+
+const SAMPLE_MEDICOS = [
+  {id:1,name:'Dr. Rodríguez, Martín',rol:'medico',esp:'Radiología'},
+  {id:2,name:'Dra. Vázquez, Carmen',rol:'medico',esp:'Resonancia Magnética'},
+  {id:3,name:'Dr. Pereyra, Diego',rol:'medico',esp:'Medicina General'},
+  {id:4,name:'Dra. Suárez, Paula',rol:'medico',esp:'Dermatología'},
+  {id:5,name:'Lic. Morales, Sebastián',rol:'lic_imagenologia',esp:'Imagenología'},
+  {id:6,name:'Lic. Ibarra, Valeria',rol:'lic_imagenologia',esp:'Ecografía'},
+  {id:7,name:'Enf. Gómez, Lorena',rol:'enfermero',esp:'Guardia'},
+  {id:8,name:'Enf. Castillo, Rodrigo',rol:'enfermero',esp:'Imagenología'},
+  {id:9,name:'Dr. Méndez, Ariel',rol:'medico',esp:'Guardia'},
+];
+
+const SAMPLE_POLI = {
+  rmn:     { medico:2, lic:5, enfermero:8, notes:'' },
+  tac:     { medico:1, lic:5, enfermero:8, notes:'' },
+  eco:     { medico:1, lic:6, enfermero:null, notes:'' },
+  rx:      { medico:1, lic:5, enfermero:null, notes:'' },
+  der:     { medico:4, lic:null, enfermero:null, notes:'' },
+  mg:      { medico:3, lic:null, enfermero:null, notes:'' },
+  guardia: { medico:9, lic:null, enfermero:7, notes:'Guardia pasiva nocturna' },
+};
+
+// Cargar desde localStorage o usar datos de ejemplo
+let turnos      = LS.load('turnos', SAMPLE_TURNOS);
+let nextId      = LS.load('nextId', 100);
+let nextMedId   = LS.load('nextMedId', 20);
+
+// Sobreescribir medicos y policlinicas con los guardados si existen
+medicos      = LS.load('medicos', medicos);
+policlinicas = LS.load('policlinicas', policlinicas);
+
+// Precios: cargar por encima de los defaults calculados
+const preciosGuardados = LS.load('precios', null);
+if(preciosGuardados) precios = preciosGuardados;
+
+// Funciones de guardado
+function saveAll(){ LS.save('turnos',turnos); LS.save('nextId',nextId); }
+function saveMedicosLS(){ LS.save('medicos',medicos); LS.save('nextMedId',nextMedId); }
+function savePoliLS(){ LS.save('policlinicas',policlinicas); }
+function savePreciosLS(){ LS.save('precios',precios); }
+
+let currentDate = new Date();
+let activeFilters = new Set(Object.keys(TYPES));
+let currentView = 'day';
+let editTurnoId = null;
+let editMedicoId = null;
+let editPoliType = null;
+
+const HOURS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+const DAYS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function dateStr(d){ return d.toISOString().slice(0,10); }
+function fmtDate(d){ return `${DAYS_ES[d.getDay()]} ${d.getDate()} de ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; }
+function getMedico(id){ return medicos.find(m=>m.id===id); }
+function getMedicoName(id){ const m=getMedico(id); return m?m.name:'—'; }
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('page-'+item.dataset.page).classList.add('active');
+    if(item.dataset.page==='policlinicas') renderPoliclinicas();
+    if(item.dataset.page==='medicos') renderMedicos();
+    if(item.dataset.page==='precios') renderPrecios();
+  });
+});
+
+// ─── AGENDA ──────────────────────────────────────────────────────────────────
+function filteredTurnos(date){
+  const ds = date ? dateStr(date) : dateStr(currentDate);
+  return turnos.filter(t=>t.date===ds && activeFilters.has(t.type));
+}
+
+function updateStats(){
+  const list=filteredTurnos();
+  document.getElementById('statTotal').textContent=list.length;
+  document.getElementById('statConf').textContent=list.filter(t=>t.status==='confirmado').length;
+  const now=new Date(); const nowMin=now.getHours()*60+now.getMinutes();
+  const next=list.filter(t=>{ const[h,m]=t.time.split(':').map(Number); return (h*60+m)>nowMin&&t.status!=='cancelado'; }).sort((a,b)=>a.time.localeCompare(b.time))[0];
+  document.getElementById('statNext').textContent=next?next.time:'—';
+  const occ=new Set(list.filter(t=>t.status!=='cancelado').map(t=>t.time));
+  document.getElementById('statDisp').textContent=HOURS.length-occ.size;
+}
+
+function renderFilters(){
+  const row=document.getElementById('filterRow'); row.innerHTML='';
+  Object.entries(TYPES).forEach(([k,v])=>{
+    const c=document.createElement('span');
+    c.className='chip '+k+(activeFilters.has(k)?' on':'');
+    c.textContent=v.label;
+    c.addEventListener('click',()=>{ activeFilters.has(k)?activeFilters.delete(k):activeFilters.add(k); renderFilters();renderDay();renderWeek();updateStats(); });
+    row.appendChild(c);
+  });
+}
+
+function turnoHTML(t){
+  const tp=TYPES[t.type];
+  const poli=policlinicas[t.type];
+  const med=poli?getMedicoName(poli.medico):'—';
+  const subBadge=`<span class="badge b-neutral">${t.sub}</span>`;
+  const medBadge=`<span class="badge b-medico">👤 ${med}</span>`;
+  const contBadge=t.contraste?`<span class="badge b-contraste">+ contraste</span>`:'';
+  const el=document.createElement('div');
+  el.className=`turno ${tp.tCls}${t.status==='cancelado'?' cancelado':''}`;
+  el.innerHTML=`<div class="turno-dot sd-${t.status}"></div><div class="turno-body"><div class="t-row1"><span class="t-time">${t.time}</span><span class="t-name">${t.name}</span></div><div class="t-row2"><span class="badge ${tp.bCls}">${tp.label}</span>${subBadge}${contBadge}${medBadge}</div></div>`;
+  el.addEventListener('click',()=>openEditTurno(t.id));
+  return el;
+}
+
+function renderDay(){
+  const dv=document.getElementById('dayView'); dv.innerHTML='';
+  const now=new Date(); const nowHour=now.getHours();
+  const isToday=dateStr(currentDate)===dateStr(now);
+  HOURS.forEach(h=>{
+    const hNum=parseInt(h);
+    const row=document.createElement('div'); row.className='hour-row';
+    const lbl=document.createElement('div'); lbl.className='hour-label'; lbl.textContent=h;
+    const slots=document.createElement('div'); slots.className='hour-slots'+(isToday&&hNum===nowHour?' current-hour':'');
+    const list=filteredTurnos().filter(t=>parseInt(t.time)===hNum).sort((a,b)=>a.time.localeCompare(b.time));
+    list.forEach(t=>slots.appendChild(turnoHTML(t)));
+    if(!list.length){
+      const emp=document.createElement('div'); emp.className='empty-slot';
+      emp.textContent='+ agregar turno';
+      emp.addEventListener('click',()=>{ document.getElementById('fTime').value=h; openNewTurno(); });
+      slots.appendChild(emp);
+    }
+    row.appendChild(lbl); row.appendChild(slots); dv.appendChild(row);
+  });
+}
+
+function getWeekStart(d){ const dd=new Date(d); const day=dd.getDay(); dd.setDate(dd.getDate()+(day===0?-6:1-day)); return dd; }
+
+function renderWeek(){
+  const wv=document.getElementById('weekView'); wv.innerHTML='';
+  const ws=getWeekStart(currentDate);
+  const days=[]; for(let i=0;i<5;i++){const d=new Date(ws);d.setDate(d.getDate()+i);days.push(d);}
+  const grid=document.createElement('div'); grid.className='week-grid';
+  const eh=document.createElement('div'); eh.className='wg-cell wg-head'; grid.appendChild(eh);
+  days.forEach(d=>{ const h=document.createElement('div'); h.className='wg-cell wg-head'; h.textContent=DAYS_ES[d.getDay()]+' '+d.getDate(); grid.appendChild(h); });
+  HOURS.forEach(h=>{
+    const hl=document.createElement('div'); hl.className='wg-cell wg-hour'; hl.textContent=h; grid.appendChild(hl);
+    days.forEach(d=>{
+      const cell=document.createElement('div'); cell.className='wg-cell';
+      const ds=dateStr(d);
+      turnos.filter(t=>t.date===ds&&activeFilters.has(t.type)&&parseInt(t.time)===parseInt(h)&&t.status!=='cancelado').forEach(t=>{
+        const p=document.createElement('div');
+        const tp=TYPES[t.type];
+        p.className=`wg-pill ${tp.tCls}`;
+        p.textContent=t.time+' '+t.name.split(',')[0]+' · '+t.sub;
+        p.addEventListener('click',()=>openEditTurno(t.id));
+        cell.appendChild(p);
+      });
+      grid.appendChild(cell);
+    });
+  });
+  wv.appendChild(grid);
+}
+
+// ─── MODAL TURNO ─────────────────────────────────────────────────────────────
+function populateTypeSelect(sel){
+  document.getElementById('fType').innerHTML='';
+  Object.entries(TYPES).forEach(([k,v])=>{
+    const o=document.createElement('option'); o.value=k; o.textContent=v.label;
+    if(k===sel)o.selected=true;
+    document.getElementById('fType').appendChild(o);
+  });
+  populateSubSelect(document.getElementById('fType').value, null);
+  updateEquipoInfo();
+}
+
+function populateSubSelect(type, selSub){
+  document.getElementById('fSub').innerHTML='';
+  (TYPES[type]?.subs||[]).forEach(s=>{
+    const o=document.createElement('option'); o.value=s; o.textContent=s;
+    if(s===selSub)o.selected=true;
+    document.getElementById('fSub').appendChild(o);
+  });
+}
+
+function updateEquipoInfo(){
+  const type=document.getElementById('fType').value;
+  const poli=policlinicas[type];
+  if(!poli){ document.getElementById('equipoInfo').style.display='none'; return; }
+  document.getElementById('equipoInfo').style.display='';
+  const med=getMedico(poli.medico);
+  const lic=getMedico(poli.lic);
+  const enf=getMedico(poli.enfermero);
+  document.getElementById('equipoMedico').textContent=med?med.name:'Sin médico asignado';
+  let detalles=[];
+  if(lic)detalles.push(lic.name+' (Imagenología)');
+  if(enf)detalles.push(enf.name+' (Enfermería)');
+  if(poli.notes)detalles.push(poli.notes);
+  document.getElementById('equipoDetalle').textContent=detalles.join(' · ')||'';
+}
+
+document.getElementById('fType').addEventListener('change',function(){
+  populateSubSelect(this.value,null); updateEquipoInfo();
+});
+
+function openNewTurno(){
+  editTurnoId=null;
+  document.getElementById('modalTurnoTitle').textContent='Nuevo turno';
+  document.getElementById('fDate').value=dateStr(currentDate);
+  if(!document.getElementById('fTime').value) document.getElementById('fTime').value='08:00';
+  document.getElementById('fName').value='';
+  document.getElementById('fContraste').checked=false;
+  document.getElementById('fStatus').value='confirmado';
+  document.getElementById('fNotes').value='';
+  document.getElementById('deleteTurnoBtn').classList.add('hidden');
+  populateTypeSelect('rmn');
+  document.getElementById('modalTurno').classList.remove('hidden');
+}
+
+function openEditTurno(id){
+  const t=turnos.find(x=>x.id===id); if(!t)return;
+  editTurnoId=id;
+  document.getElementById('modalTurnoTitle').textContent='Editar turno';
+  document.getElementById('fDate').value=t.date;
+  document.getElementById('fTime').value=t.time;
+  document.getElementById('fName').value=t.name;
+  document.getElementById('fContraste').checked=!!t.contraste;
+  document.getElementById('fStatus').value=t.status;
+  document.getElementById('fNotes').value=t.notes||'';
+  document.getElementById('deleteTurnoBtn').classList.remove('hidden');
+  populateTypeSelect(t.type);
+  populateSubSelect(t.type,t.sub);
+  updateEquipoInfo();
+  document.getElementById('modalTurno').classList.remove('hidden');
+}
+
+function saveTurno(){
+  const obj={
+    id:editTurnoId||nextId++,
+    date:document.getElementById('fDate').value,
+    name:document.getElementById('fName').value||'Paciente',
+    time:document.getElementById('fTime').value||'08:00',
+    type:document.getElementById('fType').value,
+    sub:document.getElementById('fSub').value,
+    contraste:document.getElementById('fContraste').checked,
+    status:document.getElementById('fStatus').value,
+    notes:document.getElementById('fNotes').value,
+  };
+  if(editTurnoId){const i=turnos.findIndex(x=>x.id===editTurnoId);if(i>=0)turnos[i]=obj;}
+  else{turnos.push(obj);}
+  saveAll(); closeTurnoModal(); renderDay(); renderWeek(); updateStats();
+}
+
+function deleteTurno(){ turnos=turnos.filter(x=>x.id!==editTurnoId); saveAll(); closeTurnoModal(); renderDay(); renderWeek(); updateStats(); }
+function closeTurnoModal(){ document.getElementById('modalTurno').classList.add('hidden'); }
+
+document.getElementById('addBtn').addEventListener('click',openNewTurno);
+document.getElementById('saveTurnoBtn').addEventListener('click',saveTurno);
+document.getElementById('cancelTurnoBtn').addEventListener('click',closeTurnoModal);
+document.getElementById('closeTurnoModal').addEventListener('click',closeTurnoModal);
+document.getElementById('deleteTurnoBtn').addEventListener('click',deleteTurno);
+
+// ─── DATE NAV ────────────────────────────────────────────────────────────────
+function updateDateLabel(){ document.getElementById('dateLabel').textContent=fmtDate(currentDate); }
+document.getElementById('prevDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()-1); updateDateLabel(); renderDay(); renderWeek(); updateStats(); });
+document.getElementById('nextDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()+1); updateDateLabel(); renderDay(); renderWeek(); updateStats(); });
+document.getElementById('todayBtn').addEventListener('click',()=>{ currentDate=new Date(); updateDateLabel(); renderDay(); renderWeek(); updateStats(); });
+document.querySelectorAll('.vtab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    currentView=btn.dataset.v;
+    document.querySelectorAll('.vtab').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+    document.getElementById('dayView').classList.toggle('hidden',currentView!=='day');
+    document.getElementById('weekView').classList.toggle('hidden',currentView!=='week');
+  });
+});
+
+// ─── POLICLINICAS ────────────────────────────────────────────────────────────
+function renderPoliclinicas(){
+  const grid=document.getElementById('poliGrid'); grid.innerHTML='';
+  Object.entries(TYPES).forEach(([k,v])=>{
+    const poli=policlinicas[k];
+    const med=getMedico(poli.medico);
+    const lic=getMedico(poli.lic);
+    const enf=getMedico(poli.enfermero);
+    const card=document.createElement('div'); card.className='poli-card';
+    card.innerHTML=`
+      <div class="poli-card-header">
+        <div class="poli-card-icon" style="background:var(--surface2)">${v.icon}</div>
+        <div><div class="poli-card-title">${v.label}</div><div class="poli-card-sub">${(TYPES[k].subs.length)} estudios disponibles</div></div>
+        <button class="edit-btn" data-type="${k}" style="margin-left:auto" title="Editar equipo">✏️</button>
+      </div>
+      <div class="poli-card-body">
+        <div class="poli-row"><span class="poli-row-label">Médico actuante</span><span class="poli-row-val">${med?med.name:'<em style="color:var(--text3);font-style:normal">Sin asignar</em>'}</span></div>
+        <div class="poli-row"><span class="poli-row-label">Imagenología</span><span class="poli-row-val">${lic?lic.name:'—'}</span></div>
+        <div class="poli-row"><span class="poli-row-label">Enfermería</span><span class="poli-row-val">${enf?enf.name:'—'}</span></div>
+        ${poli.notes?`<div class="poli-row"><span class="poli-row-label">Notas</span><span class="poli-row-val" style="font-weight:400">${poli.notes}</span></div>`:''}
+      </div>`;
+    card.querySelector('.edit-btn').addEventListener('click',()=>openEditPoli(k));
+    grid.appendChild(card);
+  });
+}
+
+function openEditPoli(type){
+  editPoliType=type;
+  const v=TYPES[type];
+  const poli=policlinicas[type];
+  document.getElementById('modalPoliTitle').textContent='Equipo — '+v.label;
+  document.getElementById('poliModalInfo').innerHTML=`<strong>${v.icon} ${v.label}</strong>Asigná el equipo permanente para esta policlínica.`;
+  const buildSelect=(id,rolFilter,selectedId)=>{
+    const sel=document.getElementById(id); sel.innerHTML='<option value="">— Sin asignar —</option>';
+    medicos.filter(m=>!rolFilter||rolFilter.includes(m.rol)).forEach(m=>{
+      const o=document.createElement('option'); o.value=m.id; o.textContent=m.name;
+      if(m.id===selectedId)o.selected=true;
+      sel.appendChild(o);
+    });
+  };
+  buildSelect('pMedico',['medico'],poli.medico);
+  buildSelect('pLic',['lic_imagenologia'],poli.lic);
+  buildSelect('pEnfermero',['enfermero'],poli.enfermero);
+  document.getElementById('pNotes').value=poli.notes||'';
+  document.getElementById('modalPoli').classList.remove('hidden');
+}
+
+function savePoli(){
+  const p=policlinicas[editPoliType];
+  const mv=document.getElementById('pMedico').value;
+  const lv=document.getElementById('pLic').value;
+  const ev=document.getElementById('pEnfermero').value;
+  p.medico=mv?parseInt(mv):null;
+  p.lic=lv?parseInt(lv):null;
+  p.enfermero=ev?parseInt(ev):null;
+  p.notes=document.getElementById('pNotes').value;
+  savePoliLS();
+  document.getElementById('modalPoli').classList.add('hidden');
+  renderPoliclinicas();
+}
+
+document.getElementById('savePoliBtn').addEventListener('click',savePoli);
+document.getElementById('cancelPoliBtn').addEventListener('click',()=>document.getElementById('modalPoli').classList.add('hidden'));
+document.getElementById('closePoliModal').addEventListener('click',()=>document.getElementById('modalPoli').classList.add('hidden'));
+
+// ─── MÉDICOS ─────────────────────────────────────────────────────────────────
+function renderMedicos(){
+  const tbody=document.getElementById('medicosBody'); tbody.innerHTML='';
+  medicos.forEach(m=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong>${m.name}</strong></td><td><span class="tag" style="background:var(--surface2);color:var(--text2)">${ROL_LABELS[m.rol]||m.rol}</span></td><td>${m.esp||'—'}</td><td><button class="btn btn-sm edit-btn" data-id="${m.id}">Editar</button></td>`;
+    tr.querySelector('.edit-btn').addEventListener('click',()=>openEditMedico(m.id));
+    tbody.appendChild(tr);
+  });
+}
+
+function openNewMedico(){
+  editMedicoId=null;
+  document.getElementById('modalMedicoTitle').textContent='Agregar persona';
+  document.getElementById('mName').value='';
+  document.getElementById('mRol').value='medico';
+  document.getElementById('mEsp').value='';
+  document.getElementById('deleteMedicoBtn').classList.add('hidden');
+  document.getElementById('modalMedico').classList.remove('hidden');
+}
+
+function openEditMedico(id){
+  const m=medicos.find(x=>x.id===id); if(!m)return;
+  editMedicoId=id;
+  document.getElementById('modalMedicoTitle').textContent='Editar persona';
+  document.getElementById('mName').value=m.name;
+  document.getElementById('mRol').value=m.rol;
+  document.getElementById('mEsp').value=m.esp||'';
+  document.getElementById('deleteMedicoBtn').classList.remove('hidden');
+  document.getElementById('modalMedico').classList.remove('hidden');
+}
+
+function saveMedico(){
+  const obj={id:editMedicoId||nextMedId++,name:document.getElementById('mName').value,rol:document.getElementById('mRol').value,esp:document.getElementById('mEsp').value};
+  if(editMedicoId){const i=medicos.findIndex(x=>x.id===editMedicoId);if(i>=0)medicos[i]=obj;}
+  else{medicos.push(obj);}
+  saveMedicosLS();
+  document.getElementById('modalMedico').classList.add('hidden');
+  renderMedicos();
+}
+
+function deleteMedico(){ medicos=medicos.filter(x=>x.id!==editMedicoId); saveMedicosLS(); document.getElementById('modalMedico').classList.add('hidden'); renderMedicos(); }
+
+document.getElementById('addMedicoBtn').addEventListener('click',openNewMedico);
+document.getElementById('saveMedicoBtn').addEventListener('click',saveMedico);
+document.getElementById('cancelMedicoBtn').addEventListener('click',()=>document.getElementById('modalMedico').classList.add('hidden'));
+document.getElementById('closeMedicoModal').addEventListener('click',()=>document.getElementById('modalMedico').classList.add('hidden'));
+document.getElementById('deleteMedicoBtn').addEventListener('click',deleteMedico);
+
+// ─── PRECIOS ─────────────────────────────────────────────────────────────────
+function renderPrecios(){
+  const tbody=document.getElementById('preciosBody'); tbody.innerHTML='';
+  Object.entries(TYPES).forEach(([k,v])=>{
+    v.subs.forEach(s=>{
+      const key=k+'|'+s;
+      if(!precios[key])precios[key]={base:0,contraste:0};
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td><span class="badge ${v.bCls}">${v.label}</span></td><td>${s}</td><td><input type="number" data-key="${key}" data-field="base" value="${precios[key].base}" style="width:110px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-family:var(--mono);font-size:13px;background:var(--surface);color:var(--text)" /></td><td><input type="number" data-key="${key}" data-field="contraste" value="${precios[key].contraste}" style="width:110px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-family:var(--mono);font-size:13px;background:var(--surface);color:var(--text)" /></td>`;
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+document.getElementById('savePreciosBtn').addEventListener('click',()=>{
+  document.querySelectorAll('#preciosBody input').forEach(inp=>{
+    const key=inp.dataset.key; const field=inp.dataset.field;
+    if(!precios[key])precios[key]={base:0,contraste:0};
+    precios[key][field]=parseFloat(inp.value)||0;
+  });
+  savePreciosLS();
+  const btn=document.getElementById('savePreciosBtn');
+  btn.textContent='✓ Guardado'; btn.classList.add('btn-success');
+  setTimeout(()=>{btn.textContent='Guardar cambios';btn.classList.remove('btn-success');},1800);
+});
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function setDefaultDates(){
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  document.getElementById('expFrom').value=dateStr(first);
+  document.getElementById('expTo').value=dateStr(now);
+}
+
+function getExportRows(){
+  const from=document.getElementById('expFrom').value;
+  const to=document.getElementById('expTo').value;
+  const type=document.getElementById('expType').value;
+  const status=document.getElementById('expStatus').value;
+  return turnos.filter(t=>{
+    if(from&&t.date<from)return false;
+    if(to&&t.date>to)return false;
+    if(type&&t.type!==type)return false;
+    if(status&&t.status!==status)return false;
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+}
+
+function rowToExcel(t){
+  const poli=policlinicas[t.type];
+  const med=poli?getMedicoName(poli.medico):'—';
+  const key=t.type+'|'+t.sub;
+  const p=precios[key]||{base:0,contraste:0};
+  const precio=t.contraste?p.contraste:p.base;
+  return {
+    'Fecha':t.date,
+    'Horario':t.time,
+    'Paciente':t.name,
+    'Modalidad':TYPES[t.type]?.label||t.type,
+    'Estudio':t.sub,
+    'Contraste':t.contraste?'Sí':'No',
+    'Médico actuante':med,
+    'Estado':t.status.charAt(0).toUpperCase()+t.status.slice(1),
+    'Precio':precio,
+    'Notas':t.notes||''
+  };
+}
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const rows=getExportRows();
+  if(!rows.length){alert('No hay turnos en el rango seleccionado.');return;}
+  const data=rows.map(rowToExcel);
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws['!cols']=[{wch:12},{wch:9},{wch:24},{wch:20},{wch:26},{wch:10},{wch:28},{wch:13},{wch:10},{wch:22}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Turnos');
+  const from=document.getElementById('expFrom').value;
+  const to=document.getElementById('expTo').value;
+  XLSX.writeFile(wb,`sioo_agenda_${from}_${to}.xlsx`);
+});
+
+document.getElementById('previewBtn').addEventListener('click',()=>{
+  const rows=getExportRows();
+  const container=document.getElementById('previewContainer');
+  const table=document.getElementById('previewTable');
+  document.getElementById('previewTitle').textContent=`Vista previa — ${rows.length} turno${rows.length!==1?'s':''}`;
+  if(!rows.length){container.classList.remove('hidden');table.innerHTML='<tr><td style="padding:1rem;color:var(--text3)">Sin turnos en el rango seleccionado.</td></tr>';return;}
+  const cols=['Fecha','Horario','Paciente','Modalidad','Estudio','Contraste','Médico actuante','Estado','Precio'];
+  const data=rows.map(rowToExcel);
+  table.innerHTML=`<thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${data.map(r=>`<tr>${cols.map(c=>`<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  container.classList.remove('hidden');
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+updateDateLabel(); renderFilters(); renderDay(); renderWeek(); updateStats(); setDefaultDates();
+
+// ─── PWA SERVICE WORKER ───────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>

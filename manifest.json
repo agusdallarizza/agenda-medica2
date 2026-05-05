@@ -1,0 +1,19 @@
+{
+  "name": "SIOO Agenda Médica",
+  "short_name": "SIOO Agenda",
+  "description": "Sistema de turnos para consultorios médicos",
+  "start_url": "/agenda-medica/",
+  "scope": "/agenda-medica/",
+  "display": "standalone",
+  "background_color": "#F7F6F3",
+  "theme_color": "#185FA5",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23185FA5'/><text x='96' y='130' font-size='100' text-anchor='middle'>📅</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
